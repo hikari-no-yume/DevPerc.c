@@ -1,0 +1,13 @@
+PUT H/test
+PUT E
+PUT L
+PUT L
+PUT O
+PUT THIRTYTWO/ Space
+PUT W
+PUT O
+PUT R
+PUT L
+PUT D
+PUT THIRTYTHREE/ Exclamation mark
+PUT TEN/ New line (UNIX line buffering...)
