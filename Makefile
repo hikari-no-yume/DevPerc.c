@@ -7,3 +7,6 @@ files = \
 
 devperc: $(files)
 	$(CC) -std=c99 -Wall -pedantic -o devperc $(files)
+
+clean:
+	rm devperc
