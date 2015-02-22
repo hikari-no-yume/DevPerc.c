@@ -23,6 +23,15 @@ void init_interpreter(interpreter_state *state, const char *text, size_t text_le
 	}
 }
 
+static inline unsigned char* lookup_register(const interpreter_state *state, char register_name) {
+	if (!('A' <= register_name && register_name <= 'Z')) {
+		printf("Error at character %zu: Invalid register name: '%c'.\n", state->start_pos, register_name);
+		exit(EXIT_FAILURE);
+	}
+
+	return (unsigned char*) &state->registers[register_name - 'A'];
+}
+
 /* given the restrictions on DevPerc syntax, an uncommented line won't be this
  * long
  */
@@ -31,13 +40,7 @@ void init_interpreter(interpreter_state *state, const char *text, size_t text_le
 static unsigned char interpret_expression(const interpreter_state *state, const char *expr_buf, size_t expr_len) {
 	/* register name! */
 	if (expr_len == 1) {
-		char register_name = expr_buf[0];
-		if (!('A' <= register_name && register_name <= 'Z')) {
-			printf("Invalid register name: '%c'.\n", register_name);
-			exit(EXIT_FAILURE);
-		}
-
-		return state->registers[register_name - 'A'];
+		return *lookup_register(state, expr_buf[0]);
 	} else {
 		int result = try_parse_english_number(expr_buf, expr_len);
 		if (result < 0) {
@@ -123,12 +126,7 @@ bool step_interpreter(interpreter_state *state) {
 		/* line after space must be an expression (register name) */
 		char register_name = (char)interpret_expression(state, space_pos + 1, statement_len - 4);
 		
-		if (!('A' <= register_name && register_name <= 'Z')) {
-			printf("Error at character %zu: Invalid register name: '%c'.\n", pos, register_name);
-			exit(EXIT_FAILURE);
-		}
-
-		state->registers['A' - register_name] = getchar();
+		*lookup_register(state, register_name) = getchar();
 	/* DEFINE TO statement */
 	} else if (name_len == 6 && !strncmp("DEFINE", line_buf, 6)) {
 		/* line after space should be "<expr> TO <expr>" */
@@ -156,12 +154,7 @@ bool step_interpreter(interpreter_state *state) {
 			(statement_len - (to_pos + 4 - (const char*)&line_buf))
 		);
 
-		if (!('A' <= register_name && register_name <= 'Z')) {
-			printf("Error at character %zu: Invalid register name: '%c'.\n", pos, register_name);
-			exit(EXIT_FAILURE);
-		}
-
-		state->registers[register_name - 'A'] = (unsigned char)register_value;
+		*lookup_register(state, register_name) = register_value;
 	} else {
 		printf("Error at character %zu: unrecognised statement name: \"%.*s\".\n", pos, (int)name_len, line_buf); 
 		exit(EXIT_FAILURE);
