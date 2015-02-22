@@ -118,6 +118,17 @@ bool step_interpreter(interpreter_state *state) {
 		/* line after space must be an expression */
 		unsigned char result = interpret_expression(state, space_pos + 1, statement_len - 4);
 		putchar(result);
+	/* GET statement */
+	} else if (name_len == 3 && !strncmp("GET", line_buf, 3)) {
+		/* line after space must be an expression (register name) */
+		char register_name = (char)interpret_expression(state, space_pos + 1, statement_len - 4);
+		
+		if (!('A' <= register_name && register_name <= 'Z')) {
+			printf("Error at character %zu: Invalid register name: '%c'.\n", pos, register_name);
+			exit(EXIT_FAILURE);
+		}
+
+		state->registers['A' - register_name] = getchar();
 	/* DEFINE TO statement */
 	} else if (name_len == 6 && !strncmp("DEFINE", line_buf, 6)) {
 		/* line after space should be "<expr> TO <expr>" */

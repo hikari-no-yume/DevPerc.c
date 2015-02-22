@@ -1,0 +1,4 @@
+DEFINE M TO SIXTYFIVE/ Redefines M to A
+DEFINE Z TO SEVENTYSEVEN/ Redefines Z to M
+GET Z/ A => <stdin>
+PUT M/ A
