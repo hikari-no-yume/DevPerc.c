@@ -41,7 +41,7 @@ static unsigned char interpret_expression(const interpreter_state *state, const 
 	} else {
 		int result = try_parse_english_number(expr_buf, expr_len);
 		if (result < 0) {
-			printf("Unhandled expression: \"%.*s\".\n", (int)expr_len, expr_buf);
+			printf("Unhandled expression: \"%.*s\" (%zu).\n", (int)expr_len, expr_buf, expr_len);
 			exit(EXIT_FAILURE);	
 		}
 		return result;
@@ -59,25 +59,26 @@ bool step_interpreter(interpreter_state *state) {
 	size_t line_pos = 0;
 	while (true) {
 		char in_char = state->text[pos];
+		char out_char = in_char;
 
 		/* needs substituting */
 		if ('A' <= in_char && in_char <= 'Z') {
-			line_buf[line_pos] = (char)state->registers[in_char - 'A'];
-		} else {
-			line_buf[line_pos] = in_char;
+			out_char = (char)state->registers[in_char - 'A'];
 		}
-
+		
 		/* we're done! */
-		if (in_char == '\n') {
+		if (out_char == '\n') {
 			line_buf[line_pos] = '\0';
 			break;
 		}
+		
+		line_buf[line_pos] = out_char;
 
 		pos++;
 		line_pos++;
 
 		if (!(pos < state->text_len)) {
-			line_buf[line_pos] = '\0';
+			line_buf[line_pos - 1] = '\0';
 			break;
 		}
 
@@ -114,10 +115,42 @@ bool step_interpreter(interpreter_state *state) {
 
 	/* PUT statement */
 	if (name_len == 3 && !strncmp("PUT", line_buf, 3)) {
-		
 		/* line after space must be an expression */
 		unsigned char result = interpret_expression(state, space_pos + 1, statement_len - 4);
 		putchar(result);
+	/* DEFINE TO statement */
+	} else if (name_len == 6 && !strncmp("DEFINE", line_buf, 6)) {
+		/* line after space should be "<expr> TO <expr>" */
+		const char *to_pos = strstr(space_pos + 1, " TO ");
+
+		/* strpos will look beyond end of statement as it's not bound by length
+		 * so we should check in case there was a comment like "/ TO ", say
+		 */
+		if (!to_pos || to_pos > line_buf + statement_len) {
+			printf("Error at character %zu: invalid DEFINE TO statement.\n", pos); 
+			exit(EXIT_FAILURE);
+		}
+
+		/* now to just interpret our two expressions! */
+		char register_name = (char)interpret_expression(
+			state,
+			/* name is between "DEFINE " and " TO " */
+			space_pos + 1,
+			to_pos - (space_pos + 1)
+		);
+		unsigned char register_value = interpret_expression(
+			state,
+			/* new value is between " TO " and end of statement */
+			to_pos + 4,
+			(statement_len - (to_pos + 4 - (const char*)&line_buf))
+		);
+
+		if (!('A' <= register_name && register_name <= 'Z')) {
+			printf("Error at character %zu: Invalid register name: '%c'.\n", pos, register_name);
+			exit(EXIT_FAILURE);
+		}
+
+		state->registers[register_name - 'A'] = (unsigned char)register_value;
 	} else {
 		printf("Error at character %zu: unrecognised statement name: \"%.*s\".\n", pos, (int)name_len, line_buf); 
 		exit(EXIT_FAILURE);
