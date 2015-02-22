@@ -114,7 +114,7 @@ static int try_parse_english_number_tens_and_units(const char *expr_buf, size_t 
 				MATCH_PREFIX_AND_TRY_SUFFIX("TWENTY", 20, units)
 				MATCH_PREFIX_AND_TRY_SUFFIX("THIRTY", 30, units)
 				MATCH_PREFIX_AND_TRY_SUFFIX("FORTY", 40, units)
-				MATCH_PREFIX_AND_TRY_SUFFIX("FIFTY", 40, units)
+				MATCH_PREFIX_AND_TRY_SUFFIX("FIFTY", 50, units)
 				MATCH_PREFIX_AND_TRY_SUFFIX("SIXTY", 60, units)
 				MATCH_PREFIX_AND_TRY_SUFFIX("SEVENTY", 70, units)
 				MATCH_PREFIX_AND_TRY_SUFFIX("EIGHTY", 80, units)
