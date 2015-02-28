@@ -5,6 +5,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#include <stdarg.h>
 
 #include "numbers.h"
 
@@ -23,10 +24,49 @@ void init_interpreter(interpreter_state *state, const char *text, size_t text_le
 	}
 }
 
+/* substitutes character in the input file with a register value */
+static inline char substitute(const interpreter_state *state, char in_char) {
+	/* needs substituting */
+	if ('A' <= in_char && in_char <= 'Z') {
+		return (char)state->registers[in_char - 'A'];
+	} else {
+		return in_char;
+	}
+}
+
+static size_t pos_to_line_no(const interpreter_state *state, size_t pos) {
+	size_t line = 0;
+	for (size_t i = 0; i < pos && i < state->text_len; i++) {
+		if (substitute(state, state->text[i]) == '\n') {
+			line++;
+		}
+	}
+	return line;
+}
+
+static void error_line(const interpreter_state *state, const char message[static 1], ...) {
+	va_list args;
+	va_start(args, message);
+
+	fprintf(stderr, "Error at line %zu: ", pos_to_line_no(state, state->start_pos));
+	vfprintf(stderr, message, args);
+	fprintf(stderr, ".\n");
+	exit(EXIT_FAILURE);
+}
+
+static void error_line_ex(const interpreter_state *state, size_t pos, const char message[static 1], ...) {
+	va_list args;
+	va_start(args, message);
+
+	fprintf(stderr, "Error at line %zu: ", pos_to_line_no(state, pos));
+	vfprintf(stderr, message, args);
+	fprintf(stderr, ".\n");
+	exit(EXIT_FAILURE);
+}
+
 static inline unsigned char* lookup_register(const interpreter_state *state, char register_name) {
 	if (!('A' <= register_name && register_name <= 'Z')) {
-		printf("Error at character %zu: Invalid register name: '%c'.\n", state->start_pos, register_name);
-		exit(EXIT_FAILURE);
+		error_line(state, "Invalid register name: '%c'", register_name);
 	}
 
 	return (unsigned char*) &state->registers[register_name - 'A'];
@@ -39,20 +79,9 @@ static unsigned char interpret_expression(const interpreter_state *state, const 
 	} else {
 		int result = try_parse_english_number(expr_buf, expr_len);
 		if (result < 0) {
-			printf("Unhandled expression: \"%.*s\" (%zu).\n", (int)expr_len, expr_buf, expr_len);
-			exit(EXIT_FAILURE);	
+			error_line(state, "Unhandled expression: \"%.*s\"", (int)expr_len, expr_buf);
 		}
 		return result;
-	}
-}
-
-/* substitutes character in the input file with a register value */
-static inline char substitute(const interpreter_state *state, char in_char) {
-	/* needs substituting */
-	if ('A' <= in_char && in_char <= 'Z') {
-		return (char)state->registers[in_char - 'A'];
-	} else {
-		return in_char;
 	}
 }
 
@@ -91,8 +120,7 @@ bool step_interpreter(interpreter_state *state) {
 		}
 
 		if (!(pos < BUF_SIZE)) {
-			printf("Error at character %zu: line exceeds %zu characters. Increase the BUF_SIZE constant when compiling.\n", pos, (size_t)BUF_SIZE);
-			exit(EXIT_FAILURE);
+			error_line_ex(state, pos, "line exceeds %zu characters. Increase the BUF_SIZE constant when compiling", (size_t)BUF_SIZE);
 		}
 	}
 
@@ -102,8 +130,7 @@ bool step_interpreter(interpreter_state *state) {
 	line_pos = 0;
 
 	if (!line_len) {
-		printf("Error at character %zu: line cannot be empty.", pos);
-		exit(EXIT_FAILURE);
+		error_line_ex(state, pos, "line cannot be empty");
 	}
 
 	/* seek out comment, if any, so we can ignore line beyond that point */
@@ -116,8 +143,7 @@ bool step_interpreter(interpreter_state *state) {
 	/* seek out space after first word of statement */
 	const char *space_pos = strchr(line_buf, ' ');
 	if (!space_pos) {
-		printf("Error at character %zu: invalid statement \"%.*s\".\n", pos, (int)statement_len, line_buf);
-		exit(EXIT_FAILURE);
+		error_line_ex(state, pos, "invalid statement \"%.*s\"", (int)statement_len, line_buf);
 	}
 	const size_t name_len = space_pos - (const char *)&line_buf;
 
@@ -141,8 +167,7 @@ bool step_interpreter(interpreter_state *state) {
 		 * so we should check in case there was a comment like "/ TO ", say
 		 */
 		if (!to_pos || to_pos > line_buf + statement_len) {
-			printf("Error at character %zu: invalid DEFINE TO statement.\n", pos); 
-			exit(EXIT_FAILURE);
+			error_line_ex(state, pos, "invalid DEFINE TO statement"); 
 		}
 
 		/* now to just interpret our two expressions! */
@@ -161,8 +186,7 @@ bool step_interpreter(interpreter_state *state) {
 
 		*lookup_register(state, register_name) = register_value;
 	} else {
-		printf("Error at character %zu: unrecognised statement name: \"%.*s\".\n", pos, (int)name_len, line_buf); 
-		exit(EXIT_FAILURE);
+		error_line_ex(state, pos, "unrecognised statement name: \"%.*s\"", (int)name_len, line_buf); 
 	}
 
 	/* all's good: proceed to next line */
