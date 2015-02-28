@@ -1,0 +1,5 @@
+DEFINE M TO SIXTYFIVE/ redefines m to a
+DEFINE Z TO SEVENTYSEVEN/ redefines z to m
+GET Z/ a => <t>
+PUT M/ a
+IF ONE PROCEEDTO TWO/ go to line 3 (zero-indexed)

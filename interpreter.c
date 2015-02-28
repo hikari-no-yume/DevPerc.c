@@ -64,6 +64,20 @@ static void error_line_ex(const interpreter_state *state, size_t pos, const char
 	exit(EXIT_FAILURE);
 }
 
+static size_t line_no_to_pos(const interpreter_state *state, size_t line_no) {
+	size_t line_count = 0;
+	for (size_t i = 0; i < state->text_len; i++) {
+		if (substitute(state, state->text[i]) == '\n') {
+			line_count++;
+		}
+		if (line_count == line_no) {
+			return i + 1;
+		}
+	}
+
+	error_line(state, "No such line %zu", line_no);
+}
+
 static inline unsigned char* lookup_register(const interpreter_state *state, char register_name) {
 	if (!('A' <= register_name && register_name <= 'Z')) {
 		error_line(state, "Invalid register name: '%c'", register_name);
@@ -147,8 +161,44 @@ bool step_interpreter(interpreter_state *state) {
 	}
 	const size_t name_len = space_pos - (const char *)&line_buf;
 
+	/* IF PROCEEDTO statement */
+	if (name_len == 2 && !strncmp("IF", line_buf, 2)) {
+		/* line after space should be "<expr> PROCEEDTO <expr>" */
+		const char *to_pos = strstr(space_pos + 1, " PROCEEDTO ");
+
+		/* strpos will look beyond end of statement as it's not bound by length
+		 * so we should check in case there was a comment like "/ TO ", say
+		 */
+		if (!to_pos || to_pos > line_buf + statement_len) {
+			error_line_ex(state, pos, "invalid IF PROCEEDTO statement"); 
+		}
+
+		/* now to just interpret our two expressions! */
+		unsigned char condition = (char)interpret_expression(
+			state,
+			/* name is between "IF " and " PROCEEDTO " */
+			space_pos + 1,
+			to_pos - (space_pos + 1)
+		);
+
+		/* condition is "true" if non-zero, like C
+		 * since expressions lack side-effects, we can legally short-circuit
+		 * evaluation of the line number expression
+		 */
+		if (condition != 0) {
+			unsigned char line_no = interpret_expression(
+				state,
+				/* new value is between " PROCEEDTO " and end of statement */
+				to_pos + 11,
+				(statement_len - (to_pos + 11 - (const char*)&line_buf))
+			);
+
+			state->start_pos = line_no_to_pos(state, line_no);
+			/* yes, I know goto is supposedly evil */
+			goto jump;
+		}
 	/* PUT statement */
-	if (name_len == 3 && !strncmp("PUT", line_buf, 3)) {
+	} else if (name_len == 3 && !strncmp("PUT", line_buf, 3)) {
 		/* line after space must be an expression */
 		unsigned char result = interpret_expression(state, space_pos + 1, statement_len - 4);
 		putchar(result);
@@ -156,8 +206,13 @@ bool step_interpreter(interpreter_state *state) {
 	} else if (name_len == 3 && !strncmp("GET", line_buf, 3)) {
 		/* line after space must be an expression (register name) */
 		char register_name = (char)interpret_expression(state, space_pos + 1, statement_len - 4);
-		
-		*lookup_register(state, register_name) = getchar();
+
+		int result = getc(stdin);
+		/* DevPerc "spec" requires 255 to be produced on EOF for some reason */
+		if (result == EOF) {
+			result = 255;
+		}
+		*lookup_register(state, register_name) = (unsigned char)result;
 	/* DEFINE TO statement */
 	} else if (name_len == 6 && !strncmp("DEFINE", line_buf, 6)) {
 		/* line after space should be "<expr> TO <expr>" */
@@ -191,6 +246,8 @@ bool step_interpreter(interpreter_state *state) {
 
 	/* all's good: proceed to next line */
 	state->start_pos = pos + line_len + 1;
+
+jump:
 
 	/* EOF */
 	if (!(state->start_pos < state->text_len)) {
