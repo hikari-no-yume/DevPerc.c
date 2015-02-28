@@ -32,11 +32,6 @@ static inline unsigned char* lookup_register(const interpreter_state *state, cha
 	return (unsigned char*) &state->registers[register_name - 'A'];
 }
 
-/* given the restrictions on DevPerc syntax, an uncommented line won't be this
- * long
- */
-#define BUF_SIZE 1024
-
 static unsigned char interpret_expression(const interpreter_state *state, const char *expr_buf, size_t expr_len) {
 	/* register name! */
 	if (expr_len == 1) {
@@ -50,6 +45,11 @@ static unsigned char interpret_expression(const interpreter_state *state, const 
 		return result;
 	}
 }
+
+/* given the restrictions on DevPerc syntax, an uncommented line won't be this
+ * long
+ */
+#define BUF_SIZE 1024
 
 /* execute one line
  * this assumes the interpreter is in a valid state and may segfault if not */
