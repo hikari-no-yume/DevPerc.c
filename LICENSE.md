@@ -3,7 +3,7 @@ License
 
 I started work on this in 2015, but I'm listing the copyright as 2011-2015 since this might contain stuff gleaned from [the Python implementation](https://github.com/TazeTSchnitzel/DevPerc).
 
-    Copyright (c) 2011-2013 Andrea Faulds
+    Copyright (c) 2011-2015 Andrea Faulds
 
     Permission is hereby granted, free of charge, to any person obtaining a copy
     of this software and associated documentation files (the "Software"), to deal
