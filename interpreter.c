@@ -8,6 +8,7 @@
 #include <stdarg.h>
 
 #include "numbers.h"
+#include "random.h"
 
 void init_interpreter(interpreter_state *state, const char *text, size_t text_len) {
 	state->text = text;
@@ -90,6 +91,10 @@ static unsigned char interpret_expression(const interpreter_state *state, const 
 	/* register name! */
 	if (expr_len == 1) {
 		return *lookup_register(state, expr_buf[0]);
+	/* "RANDOM" expression */
+	} else if (expr_len == 6 && !strncmp("RANDOM", expr_buf, 6)) {
+		/* getRandomNumber() returns an int, so we must take lower bits */
+		return getRandomNumber() & 0xff;
 	} else {
 		int result = try_parse_english_number(expr_buf, expr_len);
 		if (result < 0) {
