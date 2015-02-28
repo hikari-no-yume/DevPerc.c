@@ -46,6 +46,16 @@ static unsigned char interpret_expression(const interpreter_state *state, const 
 	}
 }
 
+/* substitutes character in the input file with a register value */
+static inline char substitute(const interpreter_state *state, char in_char) {
+	/* needs substituting */
+	if ('A' <= in_char && in_char <= 'Z') {
+		return (char)state->registers[in_char - 'A'];
+	} else {
+		return in_char;
+	}
+}
+
 /* given the restrictions on DevPerc syntax, an uncommented line won't be this
  * long
  */
@@ -62,13 +72,8 @@ bool step_interpreter(interpreter_state *state) {
 	size_t line_pos = 0;
 	while (true) {
 		char in_char = state->text[pos];
-		char out_char = in_char;
+		char out_char = substitute(state, in_char);
 
-		/* needs substituting */
-		if ('A' <= in_char && in_char <= 'Z') {
-			out_char = (char)state->registers[in_char - 'A'];
-		}
-		
 		/* we're done! */
 		if (out_char == '\n') {
 			line_buf[line_pos] = '\0';
